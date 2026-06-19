@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Ponto Coletivo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; }
+        .glass-card { background: rgba(255, 255, 255, 0.98); backdrop-filter: blur(8px); border: 1px solid #e2e8f0; }
+        .btn-action { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+        .btn-action:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-slide { animation: slideIn 0.3s ease-out forwards; }
+    </style>
+</head>
+<body class="p-4 md:p-10">
+
+    <div id="login-screen" class="fixed inset-0 bg-slate-900 flex items-center justify-center z-50 p-4 transition-all duration-500">
+        <div class="bg-white p-8 rounded-[2rem] shadow-2xl max-w-md w-full border border-slate-100 text-center animate-slide">
+            <div class="bg-blue-600 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-blue-200">
+                <svg xmlns="http://www.w3.org/2000/svg" class="text-white w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+            </div>
+            <h2 class="text-2xl font-extrabold text-slate-900 mb-2">Acesso Restrito</h2>
+            <p class="text-slate-500 text-sm mb-6">Introduza a palavra-passe para aceder ao Gestor de Ponto.</p>
+            
+            <form onsubmit="handleLogin(event)" class="space-y-4">
+                <input type="password" id="access-password" placeholder="Palavra-passe" autocomplete="new-password" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-center text-lg text-slate-800" required>
+                <button type="submit" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200">
+                    Entrar no Sistema
+                </button>
+            </form>
+            <p id="login-error" class="text-red-500 font-bold text-xs mt-3 hidden">Palavra-passe incorreta. Tente novamente.</p>
+        </div>
+    </div>
+
+    <div id="app-content" class="max-w-7xl mx-auto opacity-0 pointer-events-none transition-opacity duration-500">
+        <header class="flex flex-col md:flex-row justify-between items-end mb-10 gap-6 border-b border-slate-200 pb-8">
+            <div class="flex items-center gap-4">
+                <div class="bg-blue-600 p-3 rounded-2xl shadow-lg shadow-blue-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="text-white w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                </div>
+                <div>
+                    <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">Gestão de Ponto em Nuvem</h1>
+                    <p class="text-slate-500 font-medium" id="current-date-display">A carregar data...</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-4">
+                <div class="text-right hidden md:block mr-4">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Hora Local</p>
+                    <div class="text-4xl font-mono font-black text-slate-800" id="live-clock">00:00:00</div>
+                </div>
+                
+                <button onclick="clearLogs()" class="flex items-center gap-2 bg-slate-100 text-slate-600 hover:bg-red-50 hover:text-red-600 px-4 py-3 rounded-xl font-bold transition-all border border-slate-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                    <span class="hidden sm:inline">Limpar Tudo</span>
+                </button>
+
+                <button onclick="closeApp()" class="flex items-center gap-2 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white px-5 py-3 rounded-xl font-bold transition-all border border-red-100 group">
+                    <span>Sair</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 group-hover:translate-x-1 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                </button>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <div class="lg:col-span-3 space-y-6">
+                <div class="glass-card p-7 rounded-[2rem] shadow-xl shadow-slate-200/50">
+                    <h2 class="text-sm font-black text-slate-400 uppercase tracking-widest mb-6">Novo Registo</h2>
+                    <div class="space-y-5">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-2 ml-1">Data de Trabalho</label>
+                            <input type="date" id="manual-date" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-semibold text-slate-700">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-2 ml-1">Horário</label>
+                            <input type="time" id="manual-time" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-mono text-2xl text-center text-blue-600 font-bold">
+                        </div>
+                        <div class="grid grid-cols-2 gap-3 pt-2">
+                            <button onclick="registerManual('Entrada')" class="btn-action bg-blue-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-blue-200">Entrada</button>
+                            <button onclick="registerManual('Saída')" class="btn-action bg-slate-800 text-white py-4 rounded-2xl font-bold shadow-lg shadow-slate-300">Saída</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-card p-6 rounded-[2rem] border-l-8 border-l-blue-500 shadow-lg shadow-slate-200/50">
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Horas Acumuladas</p>
+                    <div id="accumulated-time" class="text-4xl font-mono font-black text-slate-800">00:00</div>
+                </div>
+
+                <div class="glass-card p-6 rounded-[2rem] border-l-8 border-l-slate-400 shadow-lg shadow-slate-200/50" id="balance-container">
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Saldo Geral (06h)</p>
+                    <div id="hour-balance" class="text-4xl font-mono font-black text-slate-800">00:00</div>
+                </div>
+            </div>
+
+            <div class="lg:col-span-9">
+                <div class="glass-card rounded-[2.5rem] shadow-2xl shadow-slate-200/60 overflow-hidden flex flex-col border-none">
+                    <div class="p-8 bg-white/50 border-b border-slate-100 flex justify-between items-center">
+                        <div>
+                            <h2 class="text-xl font-black text-slate-800">Histórico Coletivo (Nuvem)</h2>
+                            <p class="text-xs text-blue-500 font-bold mt-1">Sincronizado em tempo real para todos os usuários</p>
+                        </div>
+                        <button onclick="exportHistory()" class="bg-slate-900 text-white px-6 py-3 rounded-xl text-xs font-bold hover:bg-blue-600 transition-all flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                            Exportar CSV
+                        </button>
+                    </div>
+                    
+                    <div class="overflow-x-auto min-h-[500px]">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-50/50 text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">
+                                    <th class="px-8 py-5 text-center">Fluxo</th>
+                                    <th class="px-8 py-5">Horário Correto</th>
+                                    <th class="px-8 py-5">Data do Registro</th>
+                                    <th class="px-8 py-5 text-right">Origem</th>
+                                </tr>
+                            </thead>
+                            <tbody id="punch-history" class="divide-y divide-slate-100"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-8 py-4 rounded-2xl shadow-2xl opacity-0 transition-all z-50 pointer-events-none text-sm font-bold flex items-center gap-3">
+        <span id="toast-msg">Mensagem</span>
+    </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+
+    <script>
+        // ==================================================
+        // 1. CREDENCIAIS SUPABASE (AJUSTADAS)
+        // ==================================================
+        // Ajuste: Removido /rest/v1/ da URL base para evitar caminhos duplicados
+        
+        // Substitua pelas informações que copiou do Supabase
+        const SUPABASE_URL = "https://<vbngznkmwpyuthgdeudf>.supabase.co"; 
+        const SUPABASE_KEY = "sb_publishable_<sb_publishable_s871Pw1rHyhKp0BWMWmDVw_n51LQcbg>";
+
+
+        // const SUPABASE_URL = "https://fyhglewswvecvsgsppye.supabase.co"; 
+        // const SUPABASE_KEY = "sb_publishable_88bHZkvR0WujlvpFei0TNQ_JZwBfEd1";
+ 
+        const HASH_SENHA_CORRETA = "cf3ceedd4620c67e455c9b52d050da101c5043ff0f3aabb8b97566ef26a9f1eb";
+
+        let logs = [];
+        const DAILY_LOAD_MINUTES = 6 * 60;
+
+        function handleLogin(event) {
+            event.preventDefault();
+            const inputPass = document.getElementById('access-password').value;
+            const errorMsg = document.getElementById('login-error');
+            const hashDigitado = CryptoJS.SHA256(inputPass).toString().toLowerCase();
+
+            if (hashDigitado === HASH_SENHA_CORRETA) {
+                document.getElementById('login-screen').classList.add('opacity-0', 'pointer-events-none');
+                document.getElementById('app-content').classList.remove('opacity-0', 'pointer-events-none');
+                init();
+            } else {
+                errorMsg.classList.remove('hidden');
+                document.getElementById('access-password').value = "";
+            }
+        }
+
+        function init() {
+            updateClock();
+            setInterval(updateClock, 1000);
+            const now = new Date();
+            document.getElementById('manual-date').value = now.toISOString().split('T')[0];
+            document.getElementById('manual-time').value = now.toTimeString().slice(0,5);
+            loadFromSupabase();
+        }
+
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('current-date-display').textContent = now.toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+            document.getElementById('live-clock').textContent = now.toLocaleTimeString('pt-PT');
+        }
+
+        function closeApp() { if(confirm("Deseja fechar a sessão?")) window.location.reload(); }
+        
+        async function clearLogs() { 
+            if(confirm("ATENÇÃO: Deseja apagar o histórico de TODOS os utilizadores do banco de dados?")) {
+                try {
+                    const response = await fetch(`${SUPABASE_URL}/rest/v1/ponto_logs?id=gt.0`, {
+                        method: "DELETE",
+                        headers: {
+                            "apikey": SUPABASE_KEY,
+                            "Authorization": `Bearer ${SUPABASE_KEY}`
+                        }
+                    });
+                    if (response.ok) {
+                        logs = [];
+                        updateUI();
+                        showToast("Banco de dados limpo.");
+                    }
+                } catch (e) { showToast("Falha ao limpar nuvem."); }
+            }
+        }
+
+        async function loadFromSupabase() {
+            try {
+                showToast("A sincronizar com a nuvem...");
+                const response = await fetch(`${SUPABASE_URL}/rest/v1/ponto_logs?select=*`, {
+                    headers: {
+                        "apikey": SUPABASE_KEY,
+                        "Authorization": `Bearer ${SUPABASE_KEY}`
+                    }
+                });
+                if (response.ok) {
+                    logs = await response.json();
+                    logs.sort((a,b) => b.id - a.id);
+                    updateUI();
+                }
+            } catch (err) {
+                showToast("Erro ao carregar dados da nuvem.");
+            }
+        }
+
+        async function registerManual(type) {
+            const mDate = document.getElementById('manual-date').value;
+            const mTime = document.getElementById('manual-time').value;
+            if (!mDate || !mTime) return showToast("Campos vazios.");
+            
+            const d = mDate.split('-');
+            const formattedDate = `${d[2]}/${d[1]}/${d[0]}`;
+            const newLog = { id: Date.now(), type, time: mTime, date: formattedDate };
+
+            try {
+                const response = await fetch(`${SUPABASE_URL}/rest/v1/ponto_logs`, {
+                    method: "POST",
+                    headers: {
+                        "apikey": SUPABASE_KEY,
+                        "Authorization": `Bearer ${SUPABASE_KEY}`,
+                        "Content-Type": "application/json",
+                        "Prefer": "return=representation"
+                    },
+                    body: JSON.stringify(newLog)
+                });
+                if (response.ok) {
+                    logs.unshift(newLog);
+                    updateUI();
+                    showToast(`${type} registrada com sucesso na Nuvem!`);
+                } else {
+                    showToast("Erro ao salvar.");
+                }
+            } catch (err) {
+                showToast("Erro de conexão.");
+            }
+        }
+
+        async function toggleType(id) {
+            const i = logs.findIndex(l => l.id === id);
+            if (i !== -1) {
+                const newType = logs[i].type === 'Entrada' ? 'Saída' : 'Entrada';
+                try {
+                    const response = await fetch(`${SUPABASE_URL}/rest/v1/ponto_logs?id=eq.${id}`, {
+                        method: "PATCH",
+                        headers: {
+                            "apikey": SUPABASE_KEY,
+                            "Authorization": `Bearer ${SUPABASE_KEY}`,
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({ type: newType })
+                    });
+                    if (response.ok) {
+                        logs[i].type = newType;
+                        updateUI();
+                        showToast(`Alterado para ${newType}`);
+                    }
+                } catch(e) { showToast("Falha ao atualizar."); }
+            }
+        }
+
+        async function editLog(id, field, val) {
+            const i = logs.findIndex(l => l.id === id);
+            if (i !== -1 && logs[i][field] !== val.trim()) {
+                const updatedVal = val.trim();
+                try {
+                    const response = await fetch(`${SUPABASE_URL}/rest/v1/ponto_logs?id=eq.${id}`, {
+                        method: "PATCH",
+                        headers: {
+                            "apikey": SUPABASE_KEY,
+                            "Authorization": `Bearer ${SUPABASE_KEY}`,
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({ [field]: updatedVal })
+                    });
+                    if (response.ok) {
+                        logs[i][field] = updatedVal;
+                        updateUI();
+                    }
+                } catch(e) { showToast("Erro ao salvar alteração."); }
+            }
+        }
+
+        function updateUI() {
+            const container = document.getElementById('punch-history');
+            container.innerHTML = logs.map(log => `
+                <tr class="animate-slide hover:bg-blue-50/30 transition-all">
+                    <td class="px-8 py-6 text-center">
+                        <button onclick="toggleType(${log.id})" class="px-4 py-1.5 rounded-xl text-[10px] font-black border transition-colors ${log.type === 'Entrada' ? 'bg-blue-100 border-blue-200 text-blue-700 hover:bg-blue-200' : 'bg-slate-200 border-slate-300 text-slate-700 hover:bg-slate-300'}">
+                            ${log.type}
+                        </button>
+                    </td>
+                    <td class="px-8 py-6">
+                        <div contenteditable="true" onblur="editLog(${log.id}, 'time', this.innerText)" class="font-mono font-black text-xl text-slate-800 cursor-text">${log.time}</div>
+                    </td>
+                    <td class="px-8 py-6">
+                        <div contenteditable="true" onblur="editLog(${log.id}, 'date', this.innerText)" class="text-sm text-slate-900 font-bold cursor-text">${log.date}</div>
+                    </td>
+                    <td class="px-8 py-6 text-right text-[10px] text-slate-400 font-black">Nuvem</td>
+                </tr>`).join('');
+            
+            const metrics = calculateMetrics();
+            document.getElementById('accumulated-time').textContent = minutesToHHMM(metrics.totalWorked);
+            const balEl = document.getElementById('hour-balance');
+            balEl.textContent = (metrics.balance >= 0 ? "+" : "-") + minutesToHHMM(Math.abs(metrics.balance));
+            balEl.className = `text-4xl font-mono font-black ${metrics.balance < 0 ? 'text-red-600' : 'text-green-600'}`;
+        }
+
+        function calculateMetrics() {
+            let totalWorked = 0;
+            const sorted = getSortedLogs();
+            let lastEntry = null;
+            let daysSet = new Set();
+            sorted.forEach(log => {
+                daysSet.add(log.date);
+                if (log.type === 'Entrada') lastEntry = log;
+                else if (log.type === 'Saída' && lastEntry) {
+                    const diff = timeToMinutes(log.time) - timeToMinutes(lastEntry.time);
+                    if (diff > 0) totalWorked += diff;
+                    lastEntry = null;
+                }
+            });
+            return { totalWorked, balance: totalWorked - (daysSet.size * DAILY_LOAD_MINUTES), daysCount: daysSet.size };
+        }
+
+        function exportHistory() {
+            if (logs.length === 0) return showToast("Sem dados.");
+            const sorted = getSortedLogs();
+            const metrics = calculateMetrics();
+            let csv = "\uFEFFData;Tipo;Horário;Duração;Saldo Acumulado;Método\n";
+            let lastEntry = null;
+            let dailyTotal = 0;
+            let currentDay = "";
+
+            sorted.forEach(log => {
+                if(currentDay !== log.date) { currentDay = log.date; dailyTotal = 0; }
+                let dur = "-"; 
+                let sal = "-";
+                if (log.type === 'Entrada') lastEntry = log;
+                else if (log.type === 'Saída' && lastEntry) {
+                    const diff = timeToMinutes(log.time) - timeToMinutes(lastEntry.time);
+                    if (diff > 0) {
+                        dailyTotal += diff; dur = minutesToHHMM(diff);
+                        const b = dailyTotal - DAILY_LOAD_MINUTES;
+                        const sign = b >= 0 ? "+" : "-";
+                        sal = `'${sign}${minutesToHHMM(Math.abs(b))}`; 
+                    }
+                    lastEntry = null;
+                }
+                csv += `${log.date};${log.type};${log.time};${dur};${sal};Manual\n`;
+            });
+            const finalSign = metrics.balance >= 0 ? "+" : "-";
+            csv += `;;;;;\nRESUMO GERAL;;;;;\nDias:;${metrics.daysCount};;;;\nTotal:;${minutesToHHMM(metrics.totalWorked)};;;;\nSaldo:;'${finalSign}${minutesToHHMM(Math.abs(metrics.balance))};;;;\n`;
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `ponto_gestao_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+        }
+
+        function getSortedLogs() { 
+            return [...logs].sort((a,b) => {
+                const [da,ma,ya] = a.date.split('/'); const [db,mb,yb] = b.date.split('/');
+                return new Date(`${ya}-${ma}-${da}T${a.time}`) - new Date(`${yb}-${mb}-${db}T${b.time}`);
+            });
+        }
+        function timeToMinutes(t) { const [h,m] = t.split(':').map(Number); return (h*60)+m; }
+        function minutesToHHMM(m) { return `${Math.floor(m/60).toString().padStart(2,'0')}:${(m%60).toString().padStart(2,'0')}`; }
+        function showToast(msg) { 
+            const t = document.getElementById('toast'); 
+            document.getElementById('toast-msg').textContent = msg;
+            t.style.opacity = '1'; 
+            setTimeout(() => t.style.opacity = '0', 3000); 
+        }
+    </script>
+</body>
+</html>
