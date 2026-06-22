@@ -140,8 +140,8 @@
         // Ajuste: Removido /rest/v1/ da URL base para evitar caminhos duplicados
         
         // Substitua pelas informações que copiou do Supabase
-         const SUPABASE_URL = "https://fyhglewswvecvsgsppye.supabase.co";
-         const SUPABASE_KEY = "sb_publishable_88bHZkvR0WujlvpFei0TNQ_JZwBfEd1";
+        const SUPABASE_URL = "https://fyhglewswvecvsgsppye.supabase.co";
+        const SUPABASE_KEY = "sb_publishable_88bHZkvR0WujlvpFei0TNQ_JZwBfEd1";
  
         const HASH_SENHA_CORRETA = "cf3ceedd4620c67e455c9b52d050da101c5043ff0f3aabb8b97566ef26a9f1eb";
 
@@ -200,57 +200,58 @@
             }
         }
 
-        async function loadFromSupabase() {
-            try {
-                showToast("A sincronizar com a nuvem...");
-                const response = await fetch(`${SUPABASE_URL}/rest/v1/ponto_logs?select=*`, {
-                    headers: {
-                        "apikey": SUPABASE_KEY,
-                        "Authorization": `Bearer ${SUPABASE_KEY}`
-                    }
-                });
-                if (response.ok) {
-                    logs = await response.json();
-                    logs.sort((a,b) => b.id - a.id);
-                    updateUI();
-                }
-            } catch (err) {
-                showToast("Erro ao carregar dados da nuvem.");
+      async function loadFromSupabase() {
+    try {
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/ponto_diario?select=*`, {
+            headers: {
+                "apikey": SUPABASE_KEY,
+                "Authorization": `Bearer ${SUPABASE_KEY}`
             }
+        });
+        if (response.ok) {
+            logs = await response.json();
+            updateUI();
         }
+    } catch (err) {
+        showToast("Erro ao carregar dados.");
+    }
+}  
+     async function registerManual(type) {
+    const mDate = document.getElementById('manual-date').value;
+    const mTime = document.getElementById('manual-time').value;
+    if (!mDate || !mTime) return showToast("Campos vazios.");
+    
+    // O Supabase criará o ID automaticamente, não enviamos ele aqui
+    const newLog = { 
+        tipo: type, 
+        horario: mTime, 
+        data: mDate 
+    };
 
-        async function registerManual(type) {
-            const mDate = document.getElementById('manual-date').value;
-            const mTime = document.getElementById('manual-time').value;
-            if (!mDate || !mTime) return showToast("Campos vazios.");
-            
-            const d = mDate.split('-');
-            const formattedDate = `${d[2]}/${d[1]}/${d[0]}`;
-            //const newLog = { id: Date.now(), type, time: mTime, date: formattedDate };
-            const newLog = { type, time: mTime, date: formattedDate };
+    try {
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/ponto_diario`, {
+            method: "POST",
+            headers: {
+                "apikey": SUPABASE_KEY,
+                "Authorization": `Bearer ${SUPABASE_KEY}`,
+                "Content-Type": "application/json",
+                "Prefer": "return=representation"
+            },
+            body: JSON.stringify(newLog)
+        });
 
-            try {
-                const response = await fetch(`${SUPABASE_URL}/rest/v1/ponto_logs`, {
-                    method: "POST",
-                    headers: {
-                        "apikey": SUPABASE_KEY,
-                        "Authorization": `Bearer ${SUPABASE_KEY}`,
-                        "Content-Type": "application/json",
-                        "Prefer": "return=representation"
-                    },
-                    body: JSON.stringify(newLog)
-                });
-                if (response.ok) {
-                    logs.unshift(newLog);
-                    updateUI();
-                    showToast(`${type} registrada com sucesso na Nuvem!`);
-                } else {
-                    showToast("Erro ao salvar.");
-                }
-            } catch (err) {
-                showToast("Erro de conexão.");
-            }
+        if (response.ok) {
+            showToast(`${type} registrada com sucesso!`);
+            loadFromSupabase(); // Recarrega a tabela após salvar
+        } else {
+            const err = await response.json();
+            console.error("Erro Supabase:", err);
+            showToast("Erro ao salvar no banco.");
         }
+    } catch (err) {
+        showToast("Erro de conexão.");
+    }
+}
 
         async function toggleType(id) {
             const i = logs.findIndex(l => l.id === id);
