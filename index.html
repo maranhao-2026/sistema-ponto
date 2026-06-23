@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registo de Ponto</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes marquee {
+            0% { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
+        }
+        .animate-marquee {
+            display: inline-block;
+            white-space: nowrap;
+            animation: marquee 15s linear infinite;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 p-6">
+    <div id="login-screen" class="max-w-md mx-auto mt-20 bg-white p-8 rounded-3xl shadow-xl text-center">
+        <div class="bg-blue-100 text-blue-800 p-2 mb-6 rounded-lg overflow-hidden whitespace-nowrap">
+            <div id="date-time-marquee-login" class="animate-marquee font-bold text-sm"></div>
+        </div>
+        
+        <h2 class="text-xl font-bold mb-4">Acesso Restrito</h2>
+        <input type="password" id="password" placeholder="Digite a senha" class="w-full p-3 border rounded-xl mb-4 text-center">
+        <button onclick="checkPassword()" class="w-full bg-blue-600 text-white p-3 rounded-xl font-bold">Entrar</button>
+    </div>
+
+    <div id="main-panel" class="max-w-6xl mx-auto bg-white p-8 rounded-3xl shadow-xl hidden">
+        <div class="bg-blue-100 text-blue-800 p-2 mb-6 rounded-lg overflow-hidden whitespace-nowrap">
+            <div id="date-time-marquee-main" class="animate-marquee font-bold"></div>
+        </div>
+
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-black">Registo de Ponto (Local)</h1>
+            <button onclick="location.reload()" class="text-sm text-red-500 underline">Sair</button>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+            <input type="date" id="date" class="p-3 border rounded-xl">
+            <input type="time" id="time" class="p-3 border rounded-xl">
+            <div class="flex gap-2 col-span-full">
+                <button onclick="registrar('Entrada')" class="flex-1 bg-blue-600 text-white p-3 rounded-xl font-bold">Entrada</button>
+                <button onclick="registrar('Saída')" class="flex-1 bg-slate-800 text-white p-3 rounded-xl font-bold">Saída</button>
+                <button onclick="exportarExcel()" class="flex-1 bg-green-600 text-white p-3 rounded-xl font-bold hover:bg-green-700">Exportar Excel</button>
+                <button onclick="limparGeral()" class="flex-1 bg-red-600 text-white p-3 rounded-xl font-bold hover:bg-red-700">Limpar Geral</button>
+            </div>
+        </div>
+
+        <div class="mt-8">
+            <table id="tabela-ponto" class="w-full border-collapse">
+                <thead>
+                    <tr class="bg-slate-50 border-b">
+                        <th class="p-3">Data</th>
+                        <th class="p-3">Entrada</th>
+                        <th class="p-3">Saída</th>
+                        <th class="p-3">Horas</th>
+                        <th class="p-3">Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="lista-ponto" class="text-center"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const HASH_SENHA = "29a949c99030965dbb7d1913c240b4b4ab0dfac44e43eb2622f8d5e8e33817060";
+
+        async function sha256(message) {
+            try {
+                const msgBuffer = new TextEncoder().encode(message);
+                const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+                const hashArray = Array.from(new Uint8Array(hashBuffer));
+                return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+            } catch (e) {
+                return null;
+            }
+        }
+
+        async function checkPassword() {
+            const passInput = document.getElementById('password');
+            const pass = passInput.value.trim();
+            const passHash = await sha256(pass);
+            
+            if (passHash && passHash === HASH_SENHA) {
+                document.getElementById('login-screen').classList.add('hidden');
+                document.getElementById('main-panel').classList.remove('hidden');
+            } else {
+                alert("Senha incorreta ou erro de validação. Tente atualizar a página (Ctrl+F5).");
+            }
+        }
+
+        function updateMarqueeDateTime() {
+            const now = new Date();
+            const info = `Data: ${now.toLocaleDateString('pt-PT')} • Hora: ${now.toLocaleTimeString('pt-PT')} • Sistema de Ponto`;
+            const elLogin = document.getElementById('date-time-marquee-login');
+            const elMain = document.getElementById('date-time-marquee-main');
+            if(elLogin) elLogin.innerText = info;
+            if(elMain) elMain.innerText = info + " • Bem-vindo!";
+        }
+        setInterval(updateMarqueeDateTime, 1000);
+        updateMarqueeDateTime();
+
+        function limparGeral() {
+            if (confirm("Tem certeza que deseja apagar todos os registos?")) {
+                document.getElementById('lista-ponto').innerHTML = "";
+            }
+        }
+
+        function registrar(tipo) {
+            const dateDisplay = document.getElementById('date').value;
+            const time = document.getElementById('time').value;
+            const tbody = document.getElementById('lista-ponto');
+            let linhaExistente = Array.from(tbody.rows).find(row => row.cells[0].innerText === dateDisplay);
+
+            if (tipo === 'Entrada') {
+                if (linhaExistente) { alert("Já existe entrada para esta data."); return; }
+                const row = tbody.insertRow();
+                row.innerHTML = `<td class="p-3">${dateDisplay}</td><td class="p-3">${time}</td><td class="p-3">-</td><td class="p-3">-</td>
+                                 <td class="p-3"><button onclick="this.parentElement.parentElement.remove()" class="text-red-500 underline">Remover</button></td>`;
+            } else {
+                if (!linhaExistente) { alert("Registe a entrada primeiro."); return; }
+                linhaExistente.cells[2].innerText = time;
+            }
+        }
+
+        document.getElementById('date').value = new Date().toISOString().split('T')[0];
+        document.getElementById('time').value = new Date().toTimeString().slice(0,5);
+    </script>
+</body>
+</html>
